@@ -6,7 +6,7 @@ import torch.nn as nn
 from tqdm import trange
 import torch.optim as optim
 from torch.autograd import grad as torch_grad
-from data import Data, plt_progress
+from utils.data import Data, plt_progress
 from tqdm import trange
 
 class Generator(nn.Module):
