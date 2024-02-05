@@ -81,7 +81,7 @@ class Discriminator(nn.Module):
             nn.Linear(512, 1)
         )
 
-            #nn.Sigmoid() #todo add acitivation or not, whole batch has same activiation?
+            
 
         
 

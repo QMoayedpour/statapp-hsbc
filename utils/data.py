@@ -6,6 +6,8 @@ import torch.nn as nn
 from tqdm import trange
 import torch.optim as optim
 from torch.autograd import grad as torch_grad
+from torch.utils.data import Dataset, DataLoader
+
 
 class Data(object):
     def __init__(self, data, n):
@@ -85,3 +87,17 @@ def show_examples(real, fake, size=2):
         ax[i].legend()
 
     plt.show()
+
+
+class Loader32(Dataset):
+    
+    def __init__(self, data, length):
+        assert len(data) >= length
+        self.data = data
+        self.length = length
+    
+    def __getitem__(self, idx):
+        return torch.tensor(self.data[idx:idx+self.length]).reshape(-1, self.length).to(torch.float32)
+        
+    def __len__(self):
+        return max(len(self.data)-self.length, 0)
