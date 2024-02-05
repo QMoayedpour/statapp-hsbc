@@ -30,9 +30,9 @@ def data_simulation(start = 0,phi1=0.8, phi2=-0.2, trend=0.2,amplitude=1, freque
         y_minus_1 = y_t
     return np.array(y)
 
-def simple_plot(y):
+def simple_plot(y, title= "Simulation d\'une série AR(2)."):
     plt.plot(y, label='Série simulée')
-    plt.title('Simulation d\'une série AR(2).')
+    plt.title(title)
     plt.xlabel('Temps')
     plt.ylabel('Valeurs')
     plt.legend()

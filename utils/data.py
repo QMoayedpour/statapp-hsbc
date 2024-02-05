@@ -55,3 +55,33 @@ def plt_progress(real, fake, epoch, path):
 
     plt.savefig(path+'/Iteration_' + str(epoch) + '.png', bbox_inches='tight', pad_inches=0.5)
     plt.clf()
+
+def generate_fake_scenario(input_, true_input, train, amplifier = 1, num = 5):
+    for i in range(num):
+        conditional = train.conditional
+        noise = torch.randn((1, 1, train.latent_dim))*amplifier
+        real_samples = torch.from_numpy(input_[:conditional])
+        noise[0][0][:conditional] = real_samples[:conditional]
+        noise = noise.cuda()
+        v = train.G(noise)
+        v[0][0][:conditional] = real_samples[:conditional]
+        croissance = np.array(v.float().cpu().detach()[0][0])
+        fake_line = np.array([true_input[0]] + [true_input[0] * np.prod(1 + croissance[:i+1]) for i in range(40)])
+        plt.plot(fake_line)
+    plt.plot(true_input[:len(fake_line)], label=f'Vrai donnée', linewidth=2.5, color="red") 
+    plt.legend()
+    plt.show()
+
+def show_examples(real, fake, size=2):
+    real = np.squeeze(real)
+    fake = np.squeeze(fake)
+
+    fig, ax = plt.subplots(size,size,figsize=(10, 10))
+    ax = ax.flatten()
+    fig.suptitle('Data generation, iter:' +str(3))
+    for i in range(ax.shape[0]):
+        ax[i].plot(real[i], color='red', label='Real', alpha =0.7)
+        ax[i].plot(fake[i], color='blue', label='Fake', alpha =0.7)
+        ax[i].legend()
+
+    plt.show()
