@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def data_simulation(phi1=0.8, phi2=-0.2, trend=0.2,amplitude=1, frequency= 0.03, sigma= 2, n=300, change=True):
 
     amplitude = 1.0
@@ -30,9 +31,10 @@ def data_simulation(phi1=0.8, phi2=-0.2, trend=0.2,amplitude=1, frequency= 0.03,
         y_minus_1 = y_t
     return np.array(y)
 
-def simple_plot(y):
-    plt.plot(y, label='Série simulée')
-    plt.title('Simulation d\'une série AR(2).')
+
+def simple_plot(y, title):
+    plt.plot(y)
+    plt.title(title)
     plt.xlabel('Temps')
     plt.ylabel('Valeurs')
     plt.legend()
