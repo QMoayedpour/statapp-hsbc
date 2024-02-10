@@ -1,17 +1,22 @@
 # Generative Adversarial Network pour la génération de données financières
 
-<img src="img/ensae.png" alt="ENSAE" style="width: 400px;">
-<img src="img/hsbc.png" alt="ENSAE" style="width: 400px;">
+|             |            |
+| :---------: | :--------: |
+| <img src="img/ensae.png" alt="ENSAE" width="300"> | <img src="img/hsbc.png" alt="HSBC" width="700"> |
 
 Projet de Statistiques Appliquées, ENSAE 2023/2024
 
 ## Génération de données financières
 
-Dans le cadre du développement, de l'estimation ou de l'utilisation de modèles, les données financières servent de support au modèle. On cherche ainsi à déduire des propriétés à partir d'un état du monde observée. On suppose donc que les réalisations d'une série observée sont les résultats d'un phénomène stochastique. Les méthodes statistiques usuelles supposent que les variations d'un actif financier (par exemple), suivent une certaines lois, dont on peut estimer les paramètres. A partir de ces estimations, on peut ensuite simuler et quantifier différentes réalisation de la série à partir des paramètres estimées. Cette approche statistique nécessite de faire un certain nombre d'hypothèse sur la série observée, qui ne sont pas toujours vérifiée. Les méthodes de Machine Learning se caractérisent par des hypothèses moins fortes et une approche plus empiriste. 
+Dans le cadre du développement, de l'estimation ou de l'utilisation de modèles, les données financières servent de support au modèle. On cherche ainsi à déduire des propriétés à partir d'un état du monde observé. On suppose donc que les réalisations d'une série observée sont les résultats d'un phénomène stochastique. Les méthodes statistiques usuelles supposent que les variations d'un actif financier (par exemple), suivent une certaine loi, dont on peut estimer les paramètres. A partir de ces estimations, on peut ensuite simuler et quantifier différentes réalisations de la série. Cette approche statistique nécessite de faire un certain nombre d'hypothèse sur la série observée, qui ne sont pas toujours vérifiée. Les méthodes de Machine Learning se caractérisent par des hypothèses moins fortes et une approche plus empiriste. 
 
 ## Les modèles GAN
 
-Les modèles [GAN](https://arxiv.org/pdf/1406.2661.pdf) sont des modèles de génération de données. Ces derniers ce sont inscrits dans le paysage de l'IA grâce à leurs performances, particulièrement sur la génération d'image (cf https://thispersondoesnotexist.com/ qui génère des visages). L'avantage de la génération d'image est qu'il est "facile" de vérifier les performances du modèles. Il est plus compliqué de voir si une donnée tabulaire ou une série financière est vraisemblable. L'enjeu du projet n'est donc pas seulement de mettre en place un modèle qui peut imiter une série numérique, mais aussi de pouvoir quantifier les résultats.
+Les modèles [GAN](https://arxiv.org/pdf/1406.2661.pdf) sont des modèles de génération de données. Ces derniers se sont inscrits dans le paysage de l'IA grâce à leurs performances, particulièrement sur la génération d'images (cf https://thispersondoesnotexist.com/ qui génère des visages). L'avantage de la génération d'images est qu'il est "facile" de vérifier les performances du modèles. Il est plus compliqué de voir si une donnée tabulaire ou une série financière est vraisemblable. L'enjeu du projet n'est donc pas seulement de mettre en place un modèle qui peut imiter une série numérique, mais aussi de pouvoir quantifier les résultats.
+
+## Enjeux du projet 
+
+Ainsi, le but de ce projet est, à partir des résultats existants de la littérature, de tester l’utilisation d’algorithme GAN afin d'apprendre sur des données de marchés et de génerer des scénarios futures possibles qui peuvent être utiles à exploiter selon le contexte. L'objectif principal est donc de tester différents types et catégories d'algorithmes GAN afin de tirer le potentiel exploitable pour notre problématique et aussi les limites. Une des finalités intéressantes serait également d'observer la plus-value de cette méthode par rapport aux méthodes stochastiques décrites plus haut.
 
 
 ## Start
