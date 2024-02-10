@@ -1,9 +1,7 @@
 # Generative Adversarial Network pour la génération de données financières
 
-<div style="display: flex; justify-content: center;">
-    <img src="img/ensae.png" alt="ENSAE" style="max-width: 300px;">
-    <img src="img/hsbc.png" alt="HSBC" style="max-width: 300px;">
-</div>
+<img src="img/ensae.png" alt="ENSAE" style="width: 400px;">
+<img src="img/hsbc.png" alt="ENSAE" style="width: 400px;">
 
 Projet de Statistiques Appliquées, ENSAE 2023/2024
 
