@@ -36,9 +36,11 @@ pip install -r requirements.txt
 
 * ``presentation_gan``: présente une introduction générale au GAN en présentant un GAN de génération d'image développé avec PyTorch. 
 
-* ``gan_simulation``: présente une première utilisation de modèle GAN pour la génération de données temporelles. Le modèle utilisé est un [W-GAN](https://arxiv.org/pdf/1701.07875.pdf) avec un réseau de neurone convolutif. Le générateur est conditionnel, c'est à dire qu'il fut entraîné à prendre en entrée le début d'une série pour en déduire les n valeurs suivantes. (Le notebook est encore "brouillon", simplement quelques résultats sont présentées. #TODO: Présentation du notebook)
+* ``gan_cnn``: présente une première utilisation de modèle GAN pour la génération de données temporelles. Le modèle utilisé est un [W-GAN](https://arxiv.org/pdf/1701.07875.pdf) avec un réseau de neurone convolutif. Le générateur est conditionnel, c'est à dire qu'il fut entraîné à prendre en entrée le début d'une série pour en déduire les n valeurs suivantes. (Le notebook est encore "brouillon", simplement quelques résultats sont présentées. #TODO: Présentation du notebook)
 
-* ``gan_simulation2``: implémentation du modèle [Quant-Gan](https://arxiv.org/pdf/1907.06673.pdf).
+* ``gan_lstm``: implémentation du modèle [Quant-Gan](https://arxiv.org/pdf/1907.06673.pdf).
 
-* ``gan_simulation3``: Le modèle est pareil en tout point du modèle de ``gan_simulation``, mais l'architecture du modèle (générateur et discriminateur) est un [LSTM](https://deeplearning.cs.cmu.edu/F23/document/readings/LSTM.pdf) (Long Short Term Memory). 
+* ``quant_gan``: Le modèle est pareil en tout point du modèle de ``gan_simulation``, mais l'architecture du modèle (générateur et discriminateur) est un [LSTM](https://deeplearning.cs.cmu.edu/F23/document/readings/LSTM.pdf) (Long Short Term Memory). 
+
+* ``TimeGAN``: Implémentation du papier [TimeGan](https://proceedings.neurips.cc/paper_files/paper/2019/file/c9efe5f26cd17ba6216bbe2a7d26d490-Paper.pdf) avec TensorFlow /!\ Pour faire tourner le notebook, télécharger les packages de ``requirements2`` /!\
 
