@@ -45,6 +45,7 @@ def plot_var(model,n=10000, batch_size = 50):
 
     /!\ Cette métrique n'est adapté que pour els modèles cnn et lstm !!!
     """
+    train = model
     real_mean = []
     fake_mean = []
     for i in trange(n):
@@ -74,6 +75,7 @@ def plot_mean(model,n=10000, batch_size = 50):
 
     /!\ Cette métrique n'est adapté que pour els modèles cnn et lstm !!!
     """
+    train = model
     real_mean = []
     fake_mean = []
     for i in trange(n):
