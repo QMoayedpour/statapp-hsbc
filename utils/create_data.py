@@ -37,3 +37,21 @@ def simple_plot(y, title= "Simulation d\'une série AR(2)."):
     plt.ylabel('Valeurs')
     plt.legend()
     plt.show()
+
+
+def easy_plot(y, title, label_y):
+    """
+    Cette fonction permet de tracer un graphique simple
+
+    Paramètres:
+    y (array-like): Les données à tracer.
+    title (str): Le titre du graphique.
+    label_y (str): Le label pour l'axe des y.
+
+    """
+    plt.plot(y, label=label_y)
+    plt.title(title)
+    plt.xlabel('Temps')
+    plt.ylabel('Valeurs')
+    plt.legend()
+    plt.show()
