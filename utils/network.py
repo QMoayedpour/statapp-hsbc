@@ -18,20 +18,26 @@ class Generator(nn.Module):
         self.condition = condition
         self.hidden = 128
         
+        # Input: (batch_size, 256), Output: (batch_size, 256)
         self.block = nn.Sequential(
             nn.Linear(256, 256),
             nn.LeakyReLU(inplace=True),
            
         )
+
+        # Input: (batch_size, self.hidden, sequence_length), Output: (batch_size, self.hidden, sequence_length')
+        #since we have kernel size 3 and dilation 2, sequence_length' = sequence_length        
         self.block_cnn = nn.Sequential(
             nn.Conv1d(self.hidden,self.hidden, kernel_size=3, dilation=2, padding=2),
             nn.LeakyReLU(inplace=True),
         )
         self.block_shift = nn.Sequential(
+            # Input: (batch_size, self.hidden, sequence_length), Output: (batch_size, 10, sequence_length)
             nn.Conv1d(self.hidden,10, kernel_size=3, dilation=2, padding=2),
             nn.LeakyReLU(inplace=True),
-            
+            # Input: (batch_size, 10, sequence_length), Output: (batch_size, 10*sequence_length)            
             nn.Flatten(start_dim=1),
+            # Input: (batch_size, 10*sequence_length), Output: (batch_size, 256)
             nn.Linear(10*self.latent_dim,256),
             nn.LeakyReLU(inplace=True),
         )
@@ -45,6 +51,7 @@ class Generator(nn.Module):
             nn.Linear(256, self.ts_dim-self.condition),
         )
 
+    #"shortcut connection" to counter vanishing gradients
     def forward(self, input_data):
         x = self.noise_to_latent(input_data)
         x_block = self.block_cnn(x)
