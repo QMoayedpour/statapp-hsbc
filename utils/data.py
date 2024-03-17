@@ -66,6 +66,7 @@ def generate_fake_scenario(input_, true_input, train, amplifier = 1, num = 5):
         noise[0][0][:conditional] = real_samples[:conditional]
         noise = noise.cuda()
         v = train.G(noise)
+        #fixing the conditional part in the output 
         v[0][0][:conditional] = real_samples[:conditional]
         croissance = np.array(v.float().cpu().detach()[0][0])
         fake_line = np.array([true_input[0]] + [true_input[0] * np.prod(1 + croissance[:i+1]) for i in range(40)])
