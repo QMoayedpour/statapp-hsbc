@@ -7,7 +7,9 @@ from tqdm import trange
 import torch.optim as optim
 from torch.autograd import grad as torch_grad
 from torch.utils.data import Dataset, DataLoader
-
+from datetime import date
+from datetime import datetime as dt
+from dateutil.relativedelta import relativedelta
 
 class Data(object):
     def __init__(self, data, n):
@@ -89,6 +91,18 @@ def show_examples(real, fake, size=2):
 
     plt.show()
 
+# Reference date used to convert date to integer
+referenceDate = date(1900, 1, 1)
+ 
+
+def ConvertIntToDate(idate: int) -> dt:
+    """ Convert integer into python date type
+
+    :param idate: date in integer
+
+    :return: date in python datetime type
+    """
+    return None if (idate == None) else dt.fromordinal(referenceDate.toordinal() + int(idate) - 2)
 
 class Loader32(Dataset):
     
