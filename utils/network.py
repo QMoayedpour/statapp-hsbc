@@ -10,18 +10,20 @@ from utils.data import Data, plt_progress
 from tqdm import trange
 
 class Generator(nn.Module):
-    def __init__(self, latent_dim, ts_dim, condition):
+    def __init__(self, latent_dim, ts_dim, condition, dropout_prob=0.5):
         super(Generator, self).__init__()
 
         self.latent_dim = latent_dim
         self.ts_dim = ts_dim
         self.condition = condition
         self.hidden = 128
+        self.dropout_prob = dropout_prob
         
         # Input: (batch_size, 256), Output: (batch_size, 256)
         self.block = nn.Sequential(
             nn.Linear(256, 256),
             nn.LeakyReLU(inplace=True),
+            nn.Dropout(p=self.dropout_prob)
            
         )
 
@@ -40,15 +42,18 @@ class Generator(nn.Module):
             # Input: (batch_size, 10*sequence_length), Output: (batch_size, 256)
             nn.Linear(10*self.latent_dim,256),
             nn.LeakyReLU(inplace=True),
+            nn.Dropout(p=self.dropout_prob)
         )
         self.noise_to_latent = nn.Sequential(
             nn.Conv1d(in_channels=1, out_channels=self.hidden, kernel_size=1),
             nn.LeakyReLU(inplace=True),
             nn.Conv1d(self.hidden,self.hidden, kernel_size=5, dilation=2, padding=4),
             nn.LeakyReLU(inplace=True),
+            nn.Dropout(p=self.dropout_prob)
         )
         self.latent_to_output = nn.Sequential(
             nn.Linear(256, self.ts_dim-self.condition),
+            nn.Dropout(p=self.dropout_prob)
         )
 
     #"shortcut connection" to counter vanishing gradients
@@ -115,7 +120,7 @@ class Discriminator(nn.Module):
 
 
 class gen_model():
-    def __init__(self, data ,generator, critic, gen_optimizer, critic_optimizer, batch_size, path, ts_dim, latent_dim, D_scheduler, G_scheduler, conditional=3,gp_weight=10,critic_iter=5, n_eval=20, use_cuda=False):
+    def __init__(self, data ,generator, critic, gen_optimizer, critic_optimizer, batch_size, path, ts_dim, latent_dim, D_scheduler, G_scheduler, conditional=3,gp_weight=10,critic_iter=5, n_eval=20, use_cuda=False, _lambda= 1, n=100):
         self.G = generator
         self.D = critic
         self.G_opt = gen_optimizer
@@ -132,6 +137,13 @@ class gen_model():
         self.ts_dim = ts_dim
         self.data = Data(data,ts_dim)
         self.y = data
+        self.diff_mean = []
+        self.diff_var = []
+        self.score = []
+        self.current_score = np.inf
+        self._lambda = _lambda
+        self.n=n
+        self.best_epoch = None
 
 
         if self.use_cuda:
@@ -163,7 +175,6 @@ class gen_model():
                 d_loss = d_fake.mean() - d_real.mean() + grad_penalty.to(torch.float32)
                 d_loss.backward()
                 self.D_opt.step()
-                
 
                 if i == self.critic_iter-1:
                     self.D_scheduler.step()
@@ -171,6 +182,17 @@ class gen_model():
                     self.losses['D'].append(float(d_loss))
                     self.losses['GP'].append(grad_penalty.item())
                     self.losses['gradient_norm'].append(float(grad_norm_))
+                    temp_mean, temp_var = comp_mean_var(self, n=self.n, batch_size = self.batch_size)
+                    self.diff_mean.append(temp_mean)
+                    self.diff_var.append(temp_var)
+                    actual_score = temp_mean + self._lambda * temp_var
+                    self.score.append(actual_score)
+                    if actual_score < self.current_score:
+                        print("best score epoch:", actual_score)
+                        torch.save(self.G.state_dict(), self.scorepath + '/gen_'+ f"epoch{epoch}" + '.pt')
+                        torch.save(self.D.state_dict(), self.scorepath + '/dis_'  + f"epoch{epoch}" + '.pt') 
+                        self.current_score = actual_score
+                        self.best_epoch = epoch
             
             self.G_opt.zero_grad()
             fake_batch_critic, real_batch_critic = self.data.get_samples(G=self.G, latent_dim=self.latent_dim, batch_size=self.batch_size, ts_dim=self.ts_dim,conditional=self.conditional,data= self.y, use_cuda=self.use_cuda)
@@ -204,6 +226,7 @@ class gen_model():
                 name = 'CWGAN-GP_model_Dense3_concat_fx'
                 #torch.save(self.G.state_dict(), self.scorepath + '/gen_' + name + '.pt')
                 #torch.save(self.D.state_dict(), self.scorepath + '/dis_' + name + '.pt')    
+        self.G.load_state_dict(torch.load(self.scorepath + '/gen_'+ f"epoch{self.best_epoch}" + '.pt'))
 
 
 
@@ -236,3 +259,51 @@ class gen_model():
         #gradients = gradients.cpu()
         # comment: precision is lower than grad_norm (think that is double) and gradients_norm is float
         return self.gp_weight * (torch.max(torch.zeros(1,dtype=torch.double).cuda() if self.use_cuda else torch.zeros(1,dtype=torch.double), gradients_norm.mean() - 1) ** 2), gradients_norm.mean().item()
+
+
+def comp_mean_var(model,n=10000, batch_size = 50):
+    """Tracer la variance des taux de croissances de sous échantillons de la série réelles et générées"
+
+    Args:
+        model : model de génération de données
+        n (int, optional): nombre de sous échantillon. Defaults to 10000.
+        batch_size (int, optional): taille des sous échantillons. Defaults to 50.
+
+    /!\ Cette métrique n'est adapté que pour els modèles cnn et lstm !!!
+    """
+    train = model
+    real_mean = []
+    fake_mean = []
+    fake_var = []
+    real_var = []
+    for i in range(n):
+        real, fakes = train.data.get_samples(G=train.G, latent_dim=train.latent_dim, batch_size=batch_size, ts_dim=train.ts_dim,conditional=train.conditional,data= train.y, use_cuda=train.use_cuda)
+        real_array = real.cpu().detach().numpy().reshape(batch_size,50)
+        fake_array = fakes.cpu().detach().numpy().reshape(batch_size,50)
+        fake_var.append(np.var(fake_array))
+        real_var.append(np.var(real_array))
+        fake_mean.append(np.mean(fake_array))
+        real_mean.append(np.mean(real_array))
+
+    return abs(np.mean(fake_mean)-np.mean(real_mean)), abs(np.mean(fake_var)-np.mean(real_var))
+
+def comp_mean(model,n=10000, batch_size = 50):
+    """Tracer la moyenne des taux de croissances de sous échantillons de la série réelles et générées"
+
+    Args:
+        model : model de génération de données
+        n (int, optional): nombre de sous échantillon. Defaults to 10000.
+        batch_size (int, optional): taille des sous échantillons. Defaults to 50.
+
+    /!\ Cette métrique n'est adapté que pour els modèles cnn et lstm !!!
+    """
+    train = model
+    real_mean = []
+    fake_mean = []
+    for i in trange(n):
+        real, fakes = train.data.get_samples(G=train.G, latent_dim=train.latent_dim, batch_size=batch_size, ts_dim=train.ts_dim,conditional=train.conditional,data= train.y, use_cuda=train.use_cuda)
+        real_array = real.cpu().detach().numpy().reshape(batch_size,50)
+        fake_array = fakes.cpu().detach().numpy().reshape(batch_size,50)
+        fake_mean.append(np.mean(fake_array))
+        real_mean.append(np.mean(real_array))
+    return np.mean(fake_mean), np.mean(real_mean)
