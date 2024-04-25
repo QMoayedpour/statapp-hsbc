@@ -44,3 +44,7 @@ pip install -r requirements.txt
 
 * ``TimeGAN``: Implémentation du papier [TimeGan](https://proceedings.neurips.cc/paper_files/paper/2019/file/c9efe5f26cd17ba6216bbe2a7d26d490-Paper.pdf) avec TensorFlow /!\ Pour faire tourner le notebook, télécharger les packages de ``requirements2`` /!\
 
+## Quelques résultats
+
+![Graph](./img/GraphGeneration.jpg)
+![TSNE](./img/TSNE.jpg)
