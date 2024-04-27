@@ -77,9 +77,9 @@ def generate_fake_scenario(input_, true_input, train, amplifier = 1, num = 5):
     plt.legend()
     plt.show()
 
-def show_examples(real, fake, size=2):
+def show_examples(real, fake, size=2, reducer=5):
     real = np.squeeze(real)
-    fake = np.squeeze(fake)
+    fake = np.squeeze(fake)/reducer
 
     fig, ax = plt.subplots(size,size,figsize=(10, 10))
     ax = ax.flatten()

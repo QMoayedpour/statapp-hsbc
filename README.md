@@ -47,4 +47,5 @@ pip install -r requirements.txt
 ## Quelques résultats
 
 ![Graph](./img/GraphGeneration.jpg)
+![Graph2](./img/graphGen.png)
 ![TSNE](./img/TSNE.jpg)

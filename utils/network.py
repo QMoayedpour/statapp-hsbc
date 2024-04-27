@@ -8,6 +8,7 @@ import torch.optim as optim
 from torch.autograd import grad as torch_grad
 from utils.data import Data, plt_progress
 from tqdm import trange
+import random
 
 class Generator(nn.Module):
     def __init__(self, latent_dim, ts_dim, condition, dropout_prob=0.5):
@@ -157,7 +158,6 @@ class gen_model():
     def train_model(self, epochs):
         for epoch in trange(epochs):
             for i in range(self.critic_iter):
-                # train the critic
                 fake_batch, real_batch = self.data.get_samples(G=self.G, latent_dim=self.latent_dim, batch_size=self.batch_size, ts_dim=self.ts_dim,conditional=self.conditional,data= self.y, use_cuda=self.use_cuda)
                 if self.use_cuda:
                     real_batch = real_batch.cuda()
@@ -169,7 +169,6 @@ class gen_model():
                 d_fake = self.D(fake_batch)
 
                 grad_penalty, grad_norm_ = self._grad_penalty(real_batch, fake_batch)
-                # backprop with minimizing the difference between distribution fake and distribution real
                 self.D_opt.zero_grad()
                  
                 d_loss = d_fake.mean() - d_real.mean() + grad_penalty.to(torch.float32)
@@ -188,7 +187,7 @@ class gen_model():
                     actual_score = temp_mean + self._lambda * temp_var
                     self.score.append(actual_score)
                     if actual_score < self.current_score:
-                        print("best score epoch:", actual_score)
+                        print("best score :", actual_score, " epoch :", epoch)
                         torch.save(self.G.state_dict(), self.scorepath + '/gen_'+ f"epoch{epoch}" + '.pt')
                         torch.save(self.D.state_dict(), self.scorepath + '/dis_'  + f"epoch{epoch}" + '.pt') 
                         self.current_score = actual_score
@@ -307,3 +306,98 @@ def comp_mean(model,n=10000, batch_size = 50):
         fake_mean.append(np.mean(fake_array))
         real_mean.append(np.mean(real_array))
     return np.mean(fake_mean), np.mean(real_mean)
+
+
+
+def evaluate_fake_scenario(input_, true_input, train, n=500,amplifier = 1, num = 5, reducer=5, no_print=False):
+    """Compte le nombre de fois en moyenne ou le vrai scénario est en dehors des intervalles de faux scénarios générés
+
+    Args:
+        input_ (array): Array de la série des logs returns
+        true_input (array): Array de la vraie série
+        train (Model): Modèle de génération de données
+        n (int, optional): Nombre de fois que évalue le modèle. Defaults to 500.
+        amplifier (int, optional): Amplifier le bruit du générateur. Defaults to 1.
+        num (int, optional): nombre de séries générées à chaque évaluation. Defaults to 5.
+        reducer (int, optional): Réduire l'amplitude des séries générées. Defaults to 5.
+        no_print (bool, optional): affichage ou non du résultat. Defaults to False.
+
+    Returns:
+        int: score du modèle
+    """
+    total_count = 0
+    pb = trange(n, leave=False)
+    for j in pb:
+        start = random.randint(0, 2000)
+        in_ = input_[start:]
+        true_in_ = true_input[start:]
+        big_arr = np.empty((41))
+
+        noise = torch.randn((num, 1, train.latent_dim)) * amplifier
+        real_samples = torch.from_numpy(input_[:train.conditional])
+        noise[:, :, :train.conditional] = real_samples
+        
+
+        noise = noise.cuda()
+        v = train.G(noise) / reducer
+        v[:, :, :train.conditional] = real_samples
+        croissance = np.array(v.float().cpu().detach()[:, 0,  :])
+        fake_lines = np.array([[true_input[0]] + [true_input[0] * np.prod(1 + croissance[i, :j+1]) for j in range(40)] for i in range(num)])
+        
+        # Calcul du nombre de fois que la vraie série est en dehors de l'intervalle
+        x = fake_lines 
+        min_x = np.min(x, axis=0)
+        max_x = np.max(x, axis=0)
+        y = true_input[:41]
+        count = np.sum((y[11:] < min_x[11:]) | (y[11:] > max_x[11:]))
+        pb.set_description(f"Nombre d'erreur : {count}")
+        total_count += count
+    if not no_print:
+        print("-"*100,f"\nMoyenne du nombre de fois que la vraie série est sortie de l'intervalle sur {n} simulations pour {num} scénarios simulés :\n", total_count/n, "\n", "-"*100)
+    return total_count/n
+
+def generate_fake_scenario(input_, true_input, train, amplifier=1, num=5, reducer=5, j=False):
+    noise = torch.randn((num, 1, train.latent_dim)) * amplifier
+    real_samples = torch.from_numpy(input_[:train.conditional])
+    noise[:, :, :train.conditional] = real_samples
+
+    noise = noise.cuda()
+    v = train.G(noise) / reducer
+    v[:, :, :train.conditional] = real_samples
+    croissance = np.array(v.float().cpu().detach()[:, 0,  :])
+    fake_lines = np.array([[true_input[0]] + [true_input[0] * np.prod(1 + croissance[i, :j+1]) for j in range(40)] for i in range(num)])
+    
+    # Plot des faux scénarios
+    for fake_line in fake_lines:
+        plt.plot(fake_line, alpha=0.3)
+    x = fake_lines[:, 1:]  
+    min_x = np.min(x, axis=0)
+    max_x = np.max(x, axis=0)     
+    # Plot de la vraie série
+    plt.plot(true_input[:len(fake_line)], label='Vrai série', linewidth=2.5, color="red")
+    plt.fill_between(range(1,len(min_x)+1), min_x, max_x, color='blue', alpha=0.3, label='Intervalle des scénarios générés')
+    if type(j)==int:
+        k = (num-j)//2
+        x_small = np.partition(x, k, axis=0)[k]
+        x_big = np.partition(x, -k-1, axis=0)[-k-1]
+        plt.fill_between(range(1,len(min_x)+1), x_small, x_big, color='red', alpha=0.5, label=f'Zone contenant {j/num *100}% des données générées')
+    if j<1:
+        k = int((num-(num*j))//2)
+        print(k)
+        x_small = np.partition(x, k, axis=0)[k]
+        x_big = np.partition(x, -k-1, axis=0)[-k-1]
+        plt.fill_between(range(1,len(min_x)+1), x_small, x_big, color='red', alpha=0.5, label=f'Zone contenant {j*100}% des données générées')
+    for i, val in enumerate(true_input[:len(fake_line)]):
+        if i > 10 and i < len(min_x) + 10 and (val < min_x[i-1] or val > max_x[i-1]):
+            plt.plot(i, val, '^', color='yellow', markersize=8)
+    plt.plot([], [], '^', color='yellow', markersize=8, label='Sortie de l\'intervalle')
+    plt.title(f"Simulations de {num} scénarios de prix.")
+    plt.legend()
+    plt.show()
+    
+    # Calcul du nombre de fois que la vraie série est en dehors de l'intervalle générée
+    y = true_input[:len(fake_line)]
+    count = np.sum((y[11:] < min_x[10:]) | (y[11:] > max_x[10:]))
+    
+    print("-"*50, "\nNombre de fois que la vraie série est sortie de l'intervalle :\n", count, "\n", "-"*50)
+    return x
