@@ -381,9 +381,8 @@ def generate_fake_scenario(input_, true_input, train, amplifier=1, num=5, reduce
         x_small = np.partition(x, k, axis=0)[k]
         x_big = np.partition(x, -k-1, axis=0)[-k-1]
         plt.fill_between(range(1,len(min_x)+1), x_small, x_big, color='red', alpha=0.5, label=f'Zone contenant {j/num *100}% des données générées')
-    if j<1:
+    if j<1 and j != False:
         k = int((num-(num*j))//2)
-        print(k)
         x_small = np.partition(x, k, axis=0)[k]
         x_big = np.partition(x, -k-1, axis=0)[-k-1]
         plt.fill_between(range(1,len(min_x)+1), x_small, x_big, color='red', alpha=0.5, label=f'Zone contenant {j*100}% des données générées')
@@ -400,4 +399,4 @@ def generate_fake_scenario(input_, true_input, train, amplifier=1, num=5, reduce
     count = np.sum((y[11:] < min_x[10:]) | (y[11:] > max_x[10:]))
     
     print("-"*50, "\nNombre de fois que la vraie série est sortie de l'intervalle :\n", count, "\n", "-"*50)
-    return x
+    return 
