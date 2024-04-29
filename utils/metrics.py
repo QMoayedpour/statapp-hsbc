@@ -51,8 +51,8 @@ def plot_var(model,n=10000, batch_size = 50):
     fake_mean = []
     for i in trange(n):
         real, fakes = train.data.get_samples(G=train.G, latent_dim=train.latent_dim, batch_size=batch_size, ts_dim=train.ts_dim,conditional=train.conditional,data= train.y, use_cuda=train.use_cuda)
-        real_array = real.cpu().detach().numpy().reshape(batch_size,50)
-        fake_array = fakes.cpu().detach().numpy().reshape(batch_size,50)
+        real_array = real.cpu().detach().numpy().reshape(batch_size,train.ts_dim)
+        fake_array = fakes.cpu().detach().numpy().reshape(batch_size,train.ts_dim)
         fake_mean.append(np.var(fake_array))
         real_mean.append(np.var(real_array))
 
@@ -81,8 +81,8 @@ def plot_mean(model,n=10000, batch_size = 50):
     fake_mean = []
     for i in trange(n):
         real, fakes = train.data.get_samples(G=train.G, latent_dim=train.latent_dim, batch_size=batch_size, ts_dim=train.ts_dim,conditional=train.conditional,data= train.y, use_cuda=train.use_cuda)
-        real_array = real.cpu().detach().numpy().reshape(batch_size,50)
-        fake_array = fakes.cpu().detach().numpy().reshape(batch_size,50)
+        real_array = real.cpu().detach().numpy().reshape(batch_size,train.ts_dim)
+        fake_array = fakes.cpu().detach().numpy().reshape(batch_size,train.ts_dim)
         fake_mean.append(np.mean(fake_array))
         real_mean.append(np.mean(real_array))
 

@@ -277,8 +277,8 @@ def comp_mean_var(model,n=10000, batch_size = 50):
     real_var = []
     for i in range(n):
         real, fakes = train.data.get_samples(G=train.G, latent_dim=train.latent_dim, batch_size=batch_size, ts_dim=train.ts_dim,conditional=train.conditional,data= train.y, use_cuda=train.use_cuda)
-        real_array = real.cpu().detach().numpy().reshape(batch_size,50)
-        fake_array = fakes.cpu().detach().numpy().reshape(batch_size,50)
+        real_array = real.cpu().detach().numpy().reshape(batch_size,train.ts_dim)
+        fake_array = fakes.cpu().detach().numpy().reshape(batch_size,train.ts_dim)
         fake_var.append(np.var(fake_array))
         real_var.append(np.var(real_array))
         fake_mean.append(np.mean(fake_array))
@@ -301,8 +301,8 @@ def comp_mean(model,n=10000, batch_size = 50):
     fake_mean = []
     for i in trange(n):
         real, fakes = train.data.get_samples(G=train.G, latent_dim=train.latent_dim, batch_size=batch_size, ts_dim=train.ts_dim,conditional=train.conditional,data= train.y, use_cuda=train.use_cuda)
-        real_array = real.cpu().detach().numpy().reshape(batch_size,50)
-        fake_array = fakes.cpu().detach().numpy().reshape(batch_size,50)
+        real_array = real.cpu().detach().numpy().reshape(batch_size,train.ts_dim)
+        fake_array = fakes.cpu().detach().numpy().reshape(batch_size,train.ts_dim)
         fake_mean.append(np.mean(fake_array))
         real_mean.append(np.mean(real_array))
     return np.mean(fake_mean), np.mean(real_mean)
@@ -325,30 +325,31 @@ def evaluate_fake_scenario(input_, true_input, train, n=500,amplifier = 1, num =
     Returns:
         int: score du modèle
     """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     total_count = 0
     pb = trange(n, leave=False)
     for j in pb:
         start = random.randint(0, 2000)
         in_ = input_[start:]
         true_in_ = true_input[start:]
-        big_arr = np.empty((41))
+        big_arr = np.empty((train.ts_dim))
 
         noise = torch.randn((num, 1, train.latent_dim)) * amplifier
         real_samples = torch.from_numpy(input_[:train.conditional])
         noise[:, :, :train.conditional] = real_samples
         
 
-        noise = noise.cuda()
+        noise = noise.to(device)
         v = train.G(noise) / reducer
         v[:, :, :train.conditional] = real_samples
         croissance = np.array(v.float().cpu().detach()[:, 0,  :])
-        fake_lines = np.array([[true_input[0]] + [true_input[0] * np.prod(1 + croissance[i, :j+1]) for j in range(40)] for i in range(num)])
+        fake_lines = np.array([[true_input[0]] + [true_input[0] * np.prod(1 + croissance[i, :j+1]) for j in range(v.shape[2])] for i in range(num)])
         
         # Calcul du nombre de fois que la vraie série est en dehors de l'intervalle
         x = fake_lines 
         min_x = np.min(x, axis=0)
         max_x = np.max(x, axis=0)
-        y = true_input[:41]
+        y = true_input[:train.ts_dim+1-train.conditional]
         count = np.sum((y[11:] < min_x[11:]) | (y[11:] > max_x[11:]))
         pb.set_description(f"Nombre d'erreur : {count}")
         total_count += count
@@ -356,12 +357,12 @@ def evaluate_fake_scenario(input_, true_input, train, n=500,amplifier = 1, num =
         print("-"*100,f"\nMoyenne du nombre de fois que la vraie série est sortie de l'intervalle sur {n} simulations pour {num} scénarios simulés :\n", total_count/n, "\n", "-"*100)
     return total_count/n
 
-def generate_fake_scenario(input_, true_input, train, amplifier=1, num=5, reducer=5, j=False):
+def generate_fake_scenario(input_, true_input, train, amplifier=1, num=5, reducer=5, j=False, alphas= [0.3,0.5,0.5]):
     noise = torch.randn((num, 1, train.latent_dim)) * amplifier
     real_samples = torch.from_numpy(input_[:train.conditional])
     noise[:, :, :train.conditional] = real_samples
-
-    noise = noise.cuda()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    noise = noise.to(device)
     v = train.G(noise) / reducer
     v[:, :, :train.conditional] = real_samples
     croissance = np.array(v.float().cpu().detach()[:, 0,  :])
@@ -375,17 +376,17 @@ def generate_fake_scenario(input_, true_input, train, amplifier=1, num=5, reduce
     max_x = np.max(x, axis=0)     
     # Plot de la vraie série
     plt.plot(true_input[:len(fake_line)], label='Vrai série', linewidth=2.5, color="red")
-    plt.fill_between(range(1,len(min_x)+1), min_x, max_x, color='blue', alpha=0.3, label='Intervalle des scénarios générés')
+    plt.fill_between(range(1,len(min_x)+1), min_x, max_x, color='blue', alpha=alphas[0], label='Intervalle des scénarios générés')
     if type(j)==int:
         k = (num-j)//2
         x_small = np.partition(x, k, axis=0)[k]
         x_big = np.partition(x, -k-1, axis=0)[-k-1]
-        plt.fill_between(range(1,len(min_x)+1), x_small, x_big, color='red', alpha=0.5, label=f'Zone contenant {j/num *100}% des données générées')
+        plt.fill_between(range(1,len(min_x)+1), x_small, x_big, color='red', alpha=alphas[1], label=f'Zone contenant {j/num *100}% des données générées')
     if j<1 and j != False:
         k = int((num-(num*j))//2)
         x_small = np.partition(x, k, axis=0)[k]
         x_big = np.partition(x, -k-1, axis=0)[-k-1]
-        plt.fill_between(range(1,len(min_x)+1), x_small, x_big, color='red', alpha=0.5, label=f'Zone contenant {j*100}% des données générées')
+        plt.fill_between(range(1,len(min_x)+1), x_small, x_big, color='red', alpha=alphas[2], label=f'Zone contenant {j*100}% des données générées')
     for i, val in enumerate(true_input[:len(fake_line)]):
         if i > 10 and i < len(min_x) + 10 and (val < min_x[i-1] or val > max_x[i-1]):
             plt.plot(i, val, '^', color='yellow', markersize=8)
