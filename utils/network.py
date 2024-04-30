@@ -9,6 +9,7 @@ from torch.autograd import grad as torch_grad
 from utils.data import Data, plt_progress
 from tqdm import trange
 import random
+import math
 
 class Generator(nn.Module):
     def __init__(self, latent_dim, ts_dim, condition, dropout_prob=0.5):
@@ -401,3 +402,33 @@ def generate_fake_scenario(input_, true_input, train, amplifier=1, num=5, reduce
     
     print("-"*50, "\nNombre de fois que la vraie série est sortie de l'intervalle :\n", count, "\n", "-"*50)
     return 
+
+def generate_long_range(input_,true_input, train, length=500, n=20, reducer=5, amplifier=1, show_real=True):
+    num_g = length//(train.ts_dim-train.conditional)
+    num_g = math.ceil(length / (train.ts_dim-train.conditional))
+    noise = torch.randn((n, 1, train.latent_dim)) * amplifier
+    real_samples = torch.from_numpy(input_[:train.conditional])
+    noise[:, :, :train.conditional] = real_samples
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    noise = noise.to(device)
+    v = train.G(noise) / reducer
+    arr_v = np.array(v.float().cpu().detach()[:, 0,  :])
+    for j in range(num_g):
+        noise= torch.randn((n, 1, train.latent_dim)) * amplifier
+        bruit = np.array(noise.float().cpu().detach())
+        bruit[:, :, :train.conditional] = arr_v[:, -train.conditional:].reshape(n, 1, train.conditional)
+        bruit = torch.tensor(bruit).to(device)
+        v_temp = train.G(bruit) / reducer
+        v_temp = v_temp[:,:,train.conditional:]
+        v = torch.cat((v, v_temp), dim=2)
+        arr_v = np.array(v.float().cpu().detach()[:, 0,  :])
+
+    croissance = np.array(v.float().cpu().detach()[:, 0,  :])
+    fake_lines = np.array([[true_input[0]] + [true_input[0] * np.prod(1 + croissance[i, :j+1]) for j in range(v.shape[2])] for i in range(num)])
+    for fake in fake_lines:
+        plt.plot(fake, alpha=0.5)
+    if show_real:
+        plt.plot(true_input[:v.shape[2]], label='Vrai donnée')
+    plt.title(f'Long range scénario for {n} scénario of range {v.shape[2]}')
+    plt.legend()
+    return v, fake_lines
