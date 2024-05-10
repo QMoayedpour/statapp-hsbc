@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def data_simulation(start = 0,phi1=0.8, phi2=-0.2, trend=0.2,amplitude=1, frequency= 0.03, sigma= 2, n=300, change=True):
 
 
@@ -37,6 +38,29 @@ def simple_plot(y, title= "Simulation d\'une série AR(2)."):
     plt.ylabel('Valeurs')
     plt.legend()
     plt.show()
+
+
+def simple_plot_date(date, y, start_year, title="Cours des actifs", asset_name="Actif", ax=None):
+
+    filtered_date = date[date.dt.year >= start_year]
+    filtered_y = y[date.dt.year >= start_year]
+
+    if ax is None:
+        plt.plot(filtered_date, filtered_y, label=asset_name)
+        plt.title(title)
+        plt.xlabel('Date')
+        plt.ylabel('Prix')
+        plt.xticks(rotation=45)
+        plt.legend()
+        plt.show()
+    else:
+        ax.plot(filtered_date, filtered_y, label=asset_name)
+        ax.set_title(title)
+        ax.set_xlabel('Date')
+        ax.set_ylabel('Prix')
+        ax.legend()
+        plt.xticks(rotation=45)
+
 
 
 def easy_plot(y, title, label_y):
