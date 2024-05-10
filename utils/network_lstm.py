@@ -22,15 +22,17 @@ class LSTMGenerator(nn.Module):
     Output: sequence of shape (batch_size, seq_len, out_dim)
     """
 
-    def __init__(self, latent_dim, ts_dim,condition, n_layers=1, hidden_dim=256):
+    def __init__(self, latent_dim, ts_dim,condition, n_layers=1, hidden_dim=256, dropout=0.5):
         super().__init__()
         self.n_layers = n_layers
         self.hidden_dim = hidden_dim
         self.ts_dim = ts_dim
         self.condition = condition
+        
 
         self.lstm = nn.LSTM(latent_dim, hidden_dim, n_layers, batch_first=True)
-        self.linear = nn.Sequential(nn.Linear(hidden_dim, ts_dim- self.condition), nn.Tanh())
+        self.dropout = nn.Dropout(dropout)
+        self.linear = nn.Sequential(nn.Linear(hidden_dim, self.ts_dim- self.condition), nn.Tanh())
 
     def forward(self, input):
         batch_size, seq_len = input.size(0), input.size(1)
@@ -38,6 +40,7 @@ class LSTMGenerator(nn.Module):
         c_0 = torch.zeros(self.n_layers, batch_size, self.hidden_dim, device=input.device)
 
         recurrent_features, _ = self.lstm(input, (h_0, c_0))
+        recurrent_features = self.dropout(recurrent_features)  
         outputs = self.linear(recurrent_features.contiguous().view(batch_size*seq_len, self.hidden_dim))
         outputs = outputs.view(batch_size, seq_len, self.ts_dim - self.condition)
         return outputs
@@ -55,12 +58,13 @@ class LSTMDiscriminator(nn.Module):
     Output: sequence of shape (batch_size, seq_len, 1)
     """
 
-    def __init__(self, ts_dim,n_layers=1, hidden_dim=256):
+    def __init__(self, ts_dim,n_layers=1, hidden_dim=256, dropout=0.3):
         super().__init__()
         self.n_layers = n_layers
         self.hidden_dim = hidden_dim
 
         self.lstm = nn.LSTM(ts_dim, hidden_dim, n_layers, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
         self.linear = nn.Sequential(nn.Linear(hidden_dim, 1), nn.Sigmoid())
 
     def forward(self, input):
@@ -69,10 +73,10 @@ class LSTMDiscriminator(nn.Module):
         c_0 = torch.zeros(self.n_layers, batch_size, self.hidden_dim, device=input.device)
 
         recurrent_features, _ = self.lstm(input, (h_0, c_0))
+        recurrent_features = self.dropout(recurrent_features)  
         outputs = self.linear(recurrent_features.contiguous().view(batch_size*seq_len, self.hidden_dim))
         outputs = outputs.view(batch_size, seq_len, 1)
         return outputs
-
 
 class gen_model_rnn():
     """"Modele pour la génération de données"

@@ -122,7 +122,7 @@ class Discriminator(nn.Module):
 
 
 class gen_model():
-    def __init__(self, data ,generator, critic, gen_optimizer, critic_optimizer, batch_size, path, ts_dim, latent_dim, D_scheduler, G_scheduler, conditional=3,gp_weight=10,critic_iter=5, n_eval=20, use_cuda=False, _lambda= 1, n=100):
+    def __init__(self, data ,generator, critic, gen_optimizer, critic_optimizer, batch_size, path, ts_dim, latent_dim, D_scheduler, G_scheduler, conditional=3,gp_weight=10,critic_iter=5, n_eval=20, use_cuda=False, _lambda= 1, n=100, is_recc=False, limite = 10):
         self.G = generator
         self.D = critic
         self.G_opt = gen_optimizer
@@ -146,6 +146,9 @@ class gen_model():
         self._lambda = _lambda
         self.n=n
         self.best_epoch = None
+        self.is_recc = is_recc
+        self.stopper = 0
+        self.limite = limite
 
 
         if self.use_cuda:
@@ -166,17 +169,27 @@ class gen_model():
                     fake_batch = fake_batch.cuda()
                     self.D.cuda()
                     self.G.cuda()
-                
-                d_real = self.D(real_batch)
-                d_fake = self.D(fake_batch)
+                if self.is_recc:
+                    with torch.backends.cudnn.flags(enabled=False):
+                        d_real = self.D(real_batch)
+                        d_fake = self.D(fake_batch)
 
-                grad_penalty, grad_norm_ = self._grad_penalty(real_batch, fake_batch)
-                self.D_opt.zero_grad()
-                 
-                d_loss = d_fake.mean() - d_real.mean() + grad_penalty.to(torch.float32)
-                d_loss.backward()
-                self.D_opt.step()
+                        grad_penalty, grad_norm_ = self._grad_penalty(real_batch, fake_batch)
+                        self.D_opt.zero_grad()
+                        
+                        d_loss = d_fake.mean() - d_real.mean() + grad_penalty.to(torch.float32)
+                        d_loss.backward()
+                        self.D_opt.step()
+                else:
+                    d_real = self.D(real_batch)
+                    d_fake = self.D(fake_batch)
 
+                    grad_penalty, grad_norm_ = self._grad_penalty(real_batch, fake_batch)
+                    self.D_opt.zero_grad()
+                    
+                    d_loss = d_fake.mean() - d_real.mean() + grad_penalty.to(torch.float32)
+                    d_loss.backward()
+                    self.D_opt.step()
                 if i == self.critic_iter-1:
                     self.D_scheduler.step()
                     self.losses['LR_D'].append(self.D_scheduler.get_lr())
@@ -188,7 +201,13 @@ class gen_model():
                     self.diff_var.append(temp_var)
                     actual_score = temp_mean + self._lambda * temp_var
                     self.score.append(actual_score)
+                    self.stopper+=1
+                    if self.stopper == self.limite:
+                        self.G.load_state_dict(torch.load(self.scorepath + '/gen_'+ f"epoch" + '.pt'))
+                        print(f"Arret préliminaire, aucune amélioration du modèle depuis {self.limite} epochs")
+                        return
                     if actual_score < self.current_score:
+                        self.stopper = 0
                         pb.set_description(f"best score : {actual_score} epoch : {epoch}")
                         torch.save(self.G.state_dict(), self.scorepath + '/gen_'+ f"epoch" + '.pt')
                         torch.save(self.D.state_dict(), self.scorepath + '/dis_'  + f"epoch" + '.pt') 
@@ -207,7 +226,11 @@ class gen_model():
 
             g_loss =  - d_critic_fake.mean()  # d_critic_real.mean()
             # backprop
-            g_loss.backward()
+            if self.is_recc:
+                with torch.backends.cudnn.flags(enabled=False): 
+                    g_loss.backward()
+            else:
+                g_loss.backward()
             self.G_opt.step()
             self.G_scheduler.step()
             self.losses['LR_G'].append(self.G_scheduler.get_lr())
@@ -258,7 +281,6 @@ class gen_model():
         eps = 1e-10
         gradients_norm = torch.sqrt(torch.sum(gradients**2, dim=1, dtype=torch.double) + eps)
         #gradients = gradients.cpu()
-        # comment: precision is lower than grad_norm (think that is double) and gradients_norm is float
         return self.gp_weight * (torch.max(torch.zeros(1,dtype=torch.double).cuda() if self.use_cuda else torch.zeros(1,dtype=torch.double), gradients_norm.mean() - 1) ** 2), gradients_norm.mean().item()
 
 
@@ -344,7 +366,7 @@ def generate_long_range(input_,true_input, train, length=500, n=20, reducer=5, a
     return v, fake_lines
 
 
-def generate_fake_scenario(input_, true_input, train, amplifier=1, num=5, reducer=5, j=False, alphas= [0.3,0.5,0.5]):
+def generate_fake_scenario(input_, true_input, train, amplifier=1, num=5, reducer=5, j=False, alphas= [0.3,0.5,0.5], count_error=True):
     noise = torch.randn((num, 1, train.latent_dim)) * amplifier
     real_samples = torch.from_numpy(input_[:train.conditional])
     noise[:, :, :train.conditional] = real_samples
@@ -374,21 +396,25 @@ def generate_fake_scenario(input_, true_input, train, amplifier=1, num=5, reduce
         x_small = np.partition(x, k, axis=0)[k]
         x_big = np.partition(x, -k-1, axis=0)[-k-1]
         plt.fill_between(range(1,len(min_x)+1), x_small, x_big, color='red', alpha=alphas[2], label=f'Zone contenant {j*100}% des données générées')
-    for i, val in enumerate(true_input[:len(fake_line)]):
-        if i > train.conditional and i < len(min_x) + train.conditional and (val < min_x[i-1] or val > max_x[i-1]):
-            plt.plot(i, val, '^', color='yellow', markersize=8)
-    plt.plot([], [], '^', color='yellow', markersize=8, label='Sortie de l\'intervalle')
+    if count_error:
+        for i, val in enumerate(true_input[:len(fake_line)]):
+            if i > train.conditional and i < len(min_x) + train.conditional and (val < min_x[i-1] or val > max_x[i-1]):
+                plt.plot(i, val, '^', color='yellow', markersize=8)
+        plt.plot([], [], '^', color='yellow', markersize=8, label='Sortie de l\'intervalle')
     plt.title(f"Simulations de {num} scénarios de prix.")
     plt.legend()
     plt.grid(True)
     plt.show()
     
     # Calcul du nombre de fois que la vraie série est en dehors de l'intervalle générée
-    y = true_input[:len(fake_line)]
-    count = np.sum((y[train.conditional+1:] < min_x[train.conditional:]) | (y[train.conditional+1:] > max_x[train.conditional:]))
-    
-    print("-"*50, "\nNombre de fois que la vraie série est sortie de l'intervalle :\n", count, "sur ", v.shape[2], "\n", "-"*50)
+    if count_error:
+        y = true_input[:len(fake_line)]
+        count = np.sum((y[train.conditional+1:] < min_x[train.conditional:]) | (y[train.conditional+1:] > max_x[train.conditional:]))
+        
+        print("-"*50, "\nNombre de fois que la vraie série est sortie de l'intervalle :\n", count, "sur ", v.shape[2], "\n", "-"*50)
     return 
+
+
 def generate_long_range(input_,true_input, train, length=500, n=20, reducer=5, amplifier=1, show_real=True):
     num_g = length//(train.ts_dim-train.conditional)
     num_g = math.ceil(length / (train.ts_dim-train.conditional))
