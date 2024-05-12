@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import trange
 from scipy.stats import kurtosis, skew
+import torch
 
 
 
@@ -118,7 +119,7 @@ def get_moments(model,n=1000, batch_size = 50, reducer=1):
     fake_skew = []
     fake_kurt = []
     for i in trange(n):
-        real, fakes = train.data.get_samples(G=train.G, latent_dim=train.latent_dim, batch_size=batch_size, ts_dim=train.ts_dim,conditional=train.conditional,data= train.y, use_cuda=train.use_cuda)
+        fakes, real = train.data.get_samples(G=train.G, latent_dim=train.latent_dim, batch_size=batch_size, ts_dim=train.ts_dim,conditional=train.conditional,data= train.y, use_cuda=train.use_cuda)
         real_array = real.cpu().detach().numpy().reshape(batch_size,train.ts_dim)
         fake_array = fakes.cpu().detach().numpy().reshape(batch_size,train.ts_dim)/reducer
         fake_var.append(np.var(fake_array))
