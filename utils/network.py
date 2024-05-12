@@ -159,7 +159,7 @@ class gen_model():
         self.latent_dim = latent_dim
         self.losses = {'G': [], 'D': [], 'GP': [], 'gradient_norm': [], 'LR_G': [], 'LR_D':[]}
 
-    def train_model(self, epochs):
+    def train_model(self, epochs, compute_score=True):
         pb = trange(epochs, leave=False)
         for epoch in pb:
             for i in range(self.critic_iter):
@@ -196,24 +196,25 @@ class gen_model():
                     self.losses['D'].append(float(d_loss))
                     self.losses['GP'].append(grad_penalty.item())
                     self.losses['gradient_norm'].append(float(grad_norm_))
-                    temp_mean, temp_var = comp_mean_var(self, n=self.n, batch_size = self.batch_size)
-                    self.diff_mean.append(temp_mean)
-                    self.diff_var.append(temp_var)
-                    actual_score = temp_mean + self._lambda * temp_var
-                    self.score.append(actual_score)
-                    self.stopper+=1
-                    if self.stopper == self.limite:
-                        self.G.load_state_dict(torch.load(self.scorepath + '/gen_'+ f"epoch" + '.pt'))
-                        print(f"Arret préliminaire, aucune amélioration du modèle depuis {self.limite} epochs")
-                        return
-                    if actual_score < self.current_score:
-                        self.stopper = 0
-                        pb.set_description(f"best score : {actual_score} epoch : {epoch}")
-                        torch.save(self.G.state_dict(), self.scorepath + '/gen_'+ f"epoch" + '.pt')
-                        torch.save(self.D.state_dict(), self.scorepath + '/dis_'  + f"epoch" + '.pt') 
-                        self.current_score = actual_score
-                        self.best_epoch = epoch
-            
+                    if compute_score:
+                        temp_mean, temp_var = comp_mean_var(self, n=self.n, batch_size = self.batch_size)
+                        self.diff_mean.append(temp_mean)
+                        self.diff_var.append(temp_var)
+                        actual_score = temp_mean + self._lambda * temp_var
+                        self.score.append(actual_score)
+                        self.stopper+=1
+                        if self.stopper == self.limite:
+                            self.G.load_state_dict(torch.load(self.scorepath + '/gen_'+ f"epoch" + '.pt'))
+                            print(f"Arret préliminaire, aucune amélioration du modèle depuis {self.limite} epochs")
+                            return
+                        if actual_score < self.current_score:
+                            self.stopper = 0
+                            pb.set_description(f"best score : {actual_score} epoch : {epoch}")
+                            torch.save(self.G.state_dict(), self.scorepath + '/gen_'+ f"epoch" + '.pt')
+                            torch.save(self.D.state_dict(), self.scorepath + '/dis_'  + f"epoch" + '.pt') 
+                            self.current_score = actual_score
+                            self.best_epoch = epoch
+                
             self.G_opt.zero_grad()
             fake_batch_critic, real_batch_critic = self.data.get_samples(G=self.G, latent_dim=self.latent_dim, batch_size=self.batch_size, ts_dim=self.ts_dim,conditional=self.conditional,data= self.y, use_cuda=self.use_cuda)
             if self.use_cuda:
