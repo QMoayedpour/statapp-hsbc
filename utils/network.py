@@ -79,28 +79,26 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, ts_dim):
-        super(Discriminator,self).__init__()
-
+    def __init__(self, ts_dim, dropout_prob=0.5):
+        super(Discriminator, self).__init__()
         self.ts_dim = ts_dim
+        self.dropout_prob = dropout_prob
+        
         self.ts_to_feature = nn.Sequential(
             nn.Linear(self.ts_dim, 512),
             nn.LeakyReLU(inplace=True),
+            nn.Dropout(p=self.dropout_prob)
         )
         self.block = nn.Sequential(    
             nn.Linear(512, 512),
             nn.LeakyReLU(inplace=True),
+            nn.Dropout(p=self.dropout_prob)
         )
         self.to_score = nn.Sequential(
             nn.Linear(512, 1)
         )
 
-            
-
-        
-
     def forward(self, input_data):
-
         x = self.ts_to_feature(input_data)
         x_block = self.block(x)
         x = x + x_block
@@ -120,9 +118,10 @@ class Discriminator(nn.Module):
         
         return x
 
-
 class gen_model():
-    def __init__(self, data ,generator, critic, gen_optimizer, critic_optimizer, batch_size, path, ts_dim, latent_dim, D_scheduler, G_scheduler, conditional=3,gp_weight=10,critic_iter=5, n_eval=20, use_cuda=False, _lambda= 1, n=100, is_recc=False, limite = 10):
+    def __init__(self, data ,generator, critic, gen_optimizer, critic_optimizer, batch_size, path, ts_dim, latent_dim, D_scheduler, G_scheduler, conditional=3,gp_weight=10,critic_iter=5, 
+    n_eval=20, use_cuda=False, _lambda= 1, n=100, is_recc=False, limite = 10, window = 1
+    ,vega=np.inf, theta=5):
         self.G = generator
         self.D = critic
         self.G_opt = gen_optimizer
@@ -137,7 +136,7 @@ class gen_model():
         self.use_cuda = use_cuda
         self.conditional = conditional
         self.ts_dim = ts_dim
-        self.data = Data(data,ts_dim)
+        self.data = Data(data,ts_dim, window)
         self.y = data
         self.diff_mean = []
         self.diff_var = []
@@ -149,6 +148,8 @@ class gen_model():
         self.is_recc = is_recc
         self.stopper = 0
         self.limite = limite
+        self.vega = vega
+        self.theta = theta
 
 
         if self.use_cuda:
@@ -206,6 +207,7 @@ class gen_model():
                         if self.stopper == self.limite:
                             self.G.load_state_dict(torch.load(self.scorepath + '/gen_'+ f"epoch" + '.pt'))
                             print(f"Arret préliminaire, aucune amélioration du modèle depuis {self.limite} epochs")
+                            print(f"Last epoch : {self.best_epoch}")
                             return
                         if actual_score < self.current_score:
                             self.stopper = 0
@@ -275,15 +277,21 @@ class gen_model():
                                grad_outputs=torch.ones(prob_interpol.size()).cuda() if self.use_cuda else torch.ones(
                                    prob_interpol.size()), create_graph=True, retain_graph=True)[0]
         gradients = gradients.view(batch_size, -1)
-        #grad_norm = torch.norm(gradients, dim=1).mean()
-        #self.losses['gradient_norm'].append(grad_norm.item())
+        diff = torch.max(real_data) - torch.min(real_data)
+ 
+        
+        # Si la différence dépasse vega, multiplier grad_penalty par theta
+        if diff > self.vega:
+
+            grad_penalty = self.gp_weight * self.theta * (torch.max(torch.zeros(1).cuda() if self.use_cuda else torch.zeros(1), gradients.norm(2, dim=1).mean() - 1) ** 2)
+        else:
+            grad_penalty = self.gp_weight * (torch.max(torch.zeros(1).cuda() if self.use_cuda else torch.zeros(1), gradients.norm(2, dim=1).mean() - 1) ** 2)
 
         # add epsilon for stability
         eps = 1e-10
         gradients_norm = torch.sqrt(torch.sum(gradients**2, dim=1, dtype=torch.double) + eps)
-        #gradients = gradients.cpu()
-        return self.gp_weight * (torch.max(torch.zeros(1,dtype=torch.double).cuda() if self.use_cuda else torch.zeros(1,dtype=torch.double), gradients_norm.mean() - 1) ** 2), gradients_norm.mean().item()
 
+        return grad_penalty, gradients_norm.mean().item()
 
 def comp_mean_var(model,n=10000, batch_size = 50):
     """Tracer la variance des taux de croissances de sous échantillons de la série réelles et générées"

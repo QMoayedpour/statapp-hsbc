@@ -12,13 +12,14 @@ from datetime import datetime as dt
 from dateutil.relativedelta import relativedelta
 
 class Data(object):
-    def __init__(self, data, n):
+    def __init__(self, data, n, window=1):
         self.data= data
+        self.window = window
         self.n = n
         self.augment_data= np.array(self.moving_window(self.data, self.n))
 
     def moving_window(self,x, length):
-        return [x[i: i+ length] for i in range(0,(len(x)+1)-length, 10)]
+        return [x[i: i+ length] for i in range(0,(len(x)+1)-length, self.window)]
     
     def get_samples(self, G, latent_dim, ts_dim, batch_size, conditional, use_cuda, data):
         noise = torch.randn((batch_size,1,latent_dim))
