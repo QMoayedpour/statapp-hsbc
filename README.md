@@ -2,7 +2,7 @@
 
 |             |            |
 | :---------: | :--------: |
-| <img src="img/ensae.png" alt="ENSAE" width="300"> | <img src="img/hsbc.png" alt="HSBC" width="700"> |
+| <img src="img/ensae.png" alt="ENSAE" width="300"> | 
 
 Projet de Statistiques Appliquées, ENSAE 2023/2024
 
