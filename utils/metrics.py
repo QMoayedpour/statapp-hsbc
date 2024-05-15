@@ -8,8 +8,10 @@ import torch
 import random
 
 
-def plot_tsne(real_array, fake_array, random=False, num_random=20):
-    tsne = TSNE(n_components = 2, verbose = 1, perplexity = 40, n_iter = 300)
+from sklearn.manifold import TSNE
+
+def plot_tsne(real_array, fake_array, random=False, num_random=20, alphas=[0.5,0.5,0.5], hyper_p={"n_components":2, "verbose":1, "perplexity":10, "n_iter":300}, title= "t-SNE plot"):
+    tsne = TSNE(n_components=hyper_p["n_components"], verbose=hyper_p["verbose"], perplexity=hyper_p["perplexity"], n_iter=hyper_p["n_iter"])
     num_real = real_array.shape[0]  
     len_real = real_array.shape[2] 
     num_fake = fake_array.shape[0]
@@ -22,18 +24,19 @@ def plot_tsne(real_array, fake_array, random=False, num_random=20):
     tsne_results = tsne.fit_transform(array_full)
     #colors = ["red" for i in range(num_real)] + ["blue" for i in range(num_fake)] + ["yellow" for i in range(num_real)] 
     f, ax = plt.subplots(1)
+    
         
     plt.scatter(tsne_results[:num_real,0], tsne_results[:num_real,1], 
-                c = colors[:num_real], alpha = 0.5, label = "Original")
+                c = colors[:num_real], alpha = alphas[0], label = "Original")
     plt.scatter(tsne_results[num_real:num_real + num_fake,0], tsne_results[num_real: num_real + num_fake,1], 
-                c = colors[num_real:num_real + num_fake], alpha = 0.5, label = "Synthetic")
+                c = colors[num_real:num_real + num_fake], alpha = alphas[1], label = "Synthetic")
     if random:
         plt.scatter(tsne_results[num_real+num_fake:,0], tsne_results[num_real*2:,1], 
-                c = colors[num_real+num_fake:], alpha = 0.5, label = "Random")
+                c = colors[num_real+num_fake:], alpha = alphas[2], label = "Random")
 
     ax.legend()
         
-    plt.title('t-SNE plot')
+    plt.title(title)
     plt.xlabel('x-tsne')
     plt.ylabel('y_tsne')
     plt.show()

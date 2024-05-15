@@ -424,9 +424,10 @@ def generate_fake_scenario(input_, true_input, train, amplifier=1, num=5, reduce
     return 
 
 
-def generate_long_range(input_,true_input, train, length=500, n=20, reducer=5, amplifier=1, show_real=True):
-    num_g = length//(train.ts_dim-train.conditional)
-    num_g = math.ceil(length / (train.ts_dim-train.conditional))
+def generate_long_range(input_,true_input, train, length=500, n=20, reducer=5, amplifier=1, show_real=True, color=False,
+                            superpose = False, alpha=0.5):
+    num_g = int(get_multiple(length,train.ts_dim-2*train.conditional )/(train.ts_dim-2*train.conditional))
+    #num_g = math.ceil(length / (train.ts_dim-train.conditional))
     noise = torch.randn((n, 1, train.latent_dim)) * amplifier
     real_samples = torch.from_numpy(input_[:train.conditional])
     noise[:, :, :train.conditional] = real_samples
@@ -434,7 +435,7 @@ def generate_long_range(input_,true_input, train, length=500, n=20, reducer=5, a
     noise = noise.to(device)
     v = train.G(noise) / reducer
     arr_v = np.array(v.float().cpu().detach()[:, 0,  :])
-    for j in range(num_g):
+    for j in trange(num_g):
         noise= torch.randn((n, 1, train.latent_dim)) * amplifier
         bruit = np.array(noise.float().cpu().detach())
         bruit[:, :, :train.conditional] = arr_v[:, -train.conditional:].reshape(n, 1, train.conditional)
@@ -447,9 +448,33 @@ def generate_long_range(input_,true_input, train, length=500, n=20, reducer=5, a
     croissance = np.array(v.float().cpu().detach()[:, 0,  :])
     fake_lines = np.array([[true_input[0]] + [true_input[0] * np.prod(1 + croissance[i, :j+1]) for j in range(v.shape[2])] for i in range(n)])
     for fake in fake_lines:
-        plt.plot(fake, alpha=0.5)
+        if color:
+            plt.plot(fake, alpha=alpha, color=color)
+        else:
+            plt.plot(fake, alpha=alpha)
     if show_real:
         plt.plot(true_input[:v.shape[2]], label='Vrai donnée')
     plt.title(f'Long range scénario for {n} scénario of range {v.shape[2]}')
     plt.legend()
+    if not superpose:
+        plt.show()
     return v, fake_lines
+
+
+def show_generations(num, train, amplifier=1, reducer=4, show_real=True, alpha=0.3, start =random.randint(200,2000)):
+    amplifier = 1
+    noise = torch.randn((num, 1, train.latent_dim)) * amplifier
+    real_samples = torch.from_numpy(y[start:start+train.conditional])
+    noise[:, :, :train.conditional] = real_samples
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    noise = noise.to(device)
+    v = train.G(noise) / reducer
+    v[:, :, :train.conditional] = real_samples
+    v = np.array(v.float().cpu().detach()[:, 0,  :])
+    print(start)
+    for ar in v:
+        plt.plot(ar, alpha=alpha)
+    if show_real:
+        plt.plot(y[start:start+train.ts_dim-train.conditional], label='real serie')
+    plt.legend()
+    return v
