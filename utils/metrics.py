@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import trange
 from scipy.stats import kurtosis, skew
 import torch
-
+import random
 
 
 def plot_tsne(real_array, fake_array, random=False, num_random=20):
