@@ -478,3 +478,91 @@ def show_generations(num, train, amplifier=1, reducer=4, show_real=True, alpha=0
         plt.plot(y[start:start+train.ts_dim-train.conditional], label='real serie')
     plt.legend()
     return v
+
+
+
+def generate_long_range(input_,true_input, train, length=500, n=20, reducer=5, amplifier=1, show_real=True, color=False, superpose=False, alpha=0.5):
+
+    num_g = int(get_multiple(length,(train.ts_dim-2*train.conditional))/(train.ts_dim-2*conditional))
+
+    #num_g = math.ceil(length / (train.ts_dim-train.conditional))
+
+    noise = torch.randn((n, 1, train.latent_dim)) * amplifier
+
+    real_samples = torch.from_numpy(input_[:train.conditional])
+
+    noise[:, :, :train.conditional] = real_samples
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    noise = noise.to(device)
+
+    v = train.G(noise) / reducer
+
+    arr_v = np.array(v.float().cpu().detach()[:, 0,  :])
+
+    for j in range(num_g):
+
+        noise= torch.randn((n, 1, train.latent_dim)) * amplifier
+
+        bruit = np.array(noise.float().cpu().detach())
+
+        bruit[:, :, :train.conditional] = arr_v[:, -train.conditional:].reshape(n, 1, train.conditional)
+
+        bruit = torch.tensor(bruit).to(device)
+
+        v_temp = train.G(bruit) / reducer
+
+        v_temp = v_temp[:,:,train.conditional:]
+
+        v = torch.cat((v, v_temp), dim=2)
+
+        arr_v = np.array(v.float().cpu().detach()[:, 0,  :])
+
+
+
+    croissance = np.array(v.float().cpu().detach()[:, 0,  :])
+
+    fake_lines = np.array([[true_input[0]] + [true_input[0] * np.prod(1 + croissance[i, :j+1]) for j in range(v.shape[2])] for i in range(n)])
+
+    for fake in fake_lines:
+
+        if color:
+
+            plt.plot(fake, alpha=alpha, color=color)
+
+        else:
+
+            plt.plot(fake, alpha=alpha)
+
+    if show_real:
+
+        plt.plot(true_input[:v.shape[2]], label='Vrai donnée', color="red", linewidth=2.5)
+
+    plt.title(f'Long range scénario for {n} scénario of range {v.shape[2]}')
+
+    plt.legend()
+
+    plt.grid(True)
+
+    if not superpose:
+
+        plt.show()
+
+    return v, fake_lines
+
+
+
+
+
+def get_multiple(r, divizer):
+
+    quotient, reste = divmod(r, divizer)
+
+    if reste == 0:
+
+        return r
+
+    else:
+
+        return (quotient + 1) * divizer
