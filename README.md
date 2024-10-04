@@ -14,6 +14,10 @@ Dans le cadre du développement, de l'estimation ou de l'utilisation de modèles
 
 Les modèles [GAN](https://arxiv.org/pdf/1406.2661.pdf) sont des modèles de génération de données. Ces derniers se sont inscrits dans le paysage de l'IA grâce à leurs performances, particulièrement sur la génération d'images (cf https://thispersondoesnotexist.com/ qui génère des visages). L'avantage de la génération d'images est qu'il est "facile" de vérifier les performances du modèles. Il est plus compliqué de voir si une donnée tabulaire ou une série financière est vraisemblable. L'enjeu du projet n'est donc pas seulement de mettre en place un modèle qui peut imiter une série numérique, mais aussi de pouvoir quantifier les résultats.
 
+
+Se référer au fichier ``Rapport.pdf`` pour voir les résultats détaillés 
+
+
 ## Enjeux du projet 
 
 Ainsi, le but de ce projet est, à partir des résultats existants de la littérature, de tester l’utilisation d’algorithme GAN afin d'apprendre sur des données de marchés et de génerer des scénarios futures possibles qui peuvent être utiles à exploiter selon le contexte. L'objectif principal est donc de tester différents types et catégories d'algorithmes GAN afin de tirer le potentiel exploitable pour notre problématique et aussi les limites. Une des finalités intéressantes serait également d'observer la plus-value de cette méthode par rapport aux méthodes stochastiques décrites plus haut.
